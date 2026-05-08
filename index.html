@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0, touch-action: manipulation">
+  <title>🥊 Sarı Adam!</title>
+  <style>
+    :root {
+      --bg: #1a1a2e;
+      --panel-bg: #16213e;
+      --gold: #f0c040;
+      --accent: #e84118;
+    }
+
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    body {
+      background: var(--bg);
+      font-family: 'Impact', 'Arial Black', sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      overflow-x: hidden;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      background-image:
+        radial-gradient(ellipse at center, #1a1a2e 0%, #0a0a15 100%),
+        repeating-linear-gradient(45deg, transparent, transparent 35px, rgba(255,255,255,0.015) 35px, rgba(255,255,255,0.015) 36px);
+    }
+
+    .stars {
+      position: fixed; top:0; left:0; width:100%; height:100%;
+      pointer-events: none; z-index:0;
+    }
+    .star {
+      position: absolute; background: white; border-radius: 50%;
+      animation: twinkle var(--dur) ease-in-out infinite;
+      animation-delay: var(--delay); opacity:0;
+    }
+    @keyframes twinkle {
+      0%,100% { opacity:0.2; transform:scale(1); }
+      50% { opacity:1; transform:scale(1.8); }
+    }
+
+    .game-container {
+      position:relative; z-index:1; width:100%; max-width:520px;
+      padding:10px 16px 30px; display:flex; flex-direction:column;
+      align-items:center; gap:16px;
+    }
+
+    .title {
+      font-size: clamp(1.8rem, 5vw, 2.8rem); color:#fff; text-align:center;
+      text-shadow: 0 0 20px #ff4444, 0 0 40px #ff0000, 3px 3px 0 #000;
+      letter-spacing:3px; animation:titlePulse 1.5s ease-in-out infinite; margin-bottom:4px;
+    }
+    @keyframes titlePulse { 0%,100% {transform:scale(1);} 50% {transform:scale(1.04);} }
+    .subtitle { font-size:0.85rem; color:#ccc; letter-spacing:2px; text-align:center; margin-top:-10px; margin-bottom:8px; }
+
+    .stats { display:flex; gap:20px; flex-wrap:wrap; justify-content:center; width:100%; }
+    .stat-box {
+      background:var(--panel-bg); border:2px solid #333; border-radius:16px;
+      padding:10px 18px; text-align:center; color:#fff; min-width:80px;
+      box-shadow:0 4px 15px rgba(0,0,0,0.4);
+    }
+    .stat-label { font-size:0.7rem; text-transform:uppercase; letter-spacing:2px; color:#aaa; }
+    .stat-value { font-size:1.5rem; font-weight:bold; color:var(--gold); }
+
+    #healthBarContainer {
+      width:100%; background:#222; border-radius:20px; height:24px;
+      overflow:hidden; border:2px solid #444; box-shadow:inset 0 2px 8px rgba(0,0,0,0.6); margin-top:4px;
+    }
+    #healthBar {
+      width:100%; height:100%; background:linear-gradient(90deg, #ff4444, #ff6b6b, #ff4444);
+      border-radius:20px; transition:width 0.25s;
+    }
+    #healthBar.danger {
+      background:linear-gradient(90deg, #cc0000, #ff2222, #cc0000);
+      animation:dangerPulse 0.5s infinite;
+    }
+    @keyframes dangerPulse { 0%,100% {filter:brightness(1);} 50% {filter:brightness(1.6);} }
+    .health-text { text-align:center; font-size:0.75rem; color:#ccc; letter-spacing:1px; }
+
+    /* Trump Alanı */
+    .trump-area {
+      position:relative; width:240px; height:280px; cursor:crosshair;
+      transition:transform 0.1s; -webkit-tap-highlight-color:transparent;
+    }
+    .trump-area:active { transform:scale(0.96); }
+    .trump-area.hit { animation:shake 0.4s ease-in-out; }
+    @keyframes shake {
+      0%,100% { transform:translateX(0); }
+      10%,50%,90% { transform:translateX(-8px) rotate(-2deg); }
+      30%,70% { transform:translateX(8px) rotate(2deg); }
+    }
+    .trump-area.knockout { animation:knockoutFall 0.8s ease-in forwards; pointer-events:none; }
+    @keyframes knockoutFall {
+      0% { transform:rotate(0); opacity:1; }
+      100% { transform:rotate(90deg) scale(0.7); opacity:0.5; }
+    }
+
+    /* Trump Yüzü */
+    .trump-face {
+      width:200px; height:220px;
+      background: radial-gradient(ellipse at 50% 45%, #fbbf6e, #e8954a 60%, #c77030 100%);
+      border-radius:50% 50% 45% 45%;
+      position:absolute; left:50%; top:30px; transform:translateX(-50%);
+      box-shadow:0 8px 30px rgba(0,0,0,0.5), inset 0 -10px 20px rgba(0,0,0,0.3);
+      transition:0.15s; z-index:2;
+      overflow: visible; /* morluklar için taşma izni */
+    }
+    /* Morluk katmanı (yüzün içinde) */
+    .bruises-layer {
+      position:absolute; top:0; left:0; width:100%; height:100%;
+      pointer-events:none; z-index:6;
+    }
+    .bruise {
+      position:absolute;
+      width:22px; height:22px;
+      background: radial-gradient(circle, rgba(75,0,130,0.9) 0%, rgba(128,0,128,0.7) 50%, transparent 80%);
+      border-radius:50%;
+      opacity:0;
+      transition: opacity 0.15s;
+      filter: blur(2px);
+      transform: scale(0.9);
+    }
+    .trump-face.knockout-face .bruise {
+      opacity:0.9 !important;
+      background: radial-gradient(circle, rgba(60,0,100,1) 0%, rgba(100,0,100,0.9) 60%, transparent 100%);
+    }
+
+    /* Saç stilleri */
+    .trump-hair {
+      position:absolute; top:-10px; left:50%; transform:translateX(-50%);
+      width:210px; height:110px; z-index:3; pointer-events:none;
+    }
+    .hair-main {
+      width:180px; height:90px; top:0; left:15px;
+      background:#f9e076; border-radius:50% 50% 30% 30%;
+      box-shadow:0 5px 15px rgba(0,0,0,0.3); position:absolute;
+      transition: transform 0.2s, border-radius 0.2s;
+    }
+    .hair-side-left {
+      width:55px; height:80px; top:5px; left:-8px;
+      background:#e8c84a; border-radius:60% 20% 40% 30%; transform:rotate(-25deg);
+      position:absolute; transition: transform 0.2s;
+    }
+    .hair-side-right {
+      width:60px; height:85px; top:2px; right:-10px;
+      background:#edd24e; border-radius:30% 50% 30% 40%; transform:rotate(20deg);
+      position:absolute; transition: transform 0.2s;
+    }
+    /* Dağınık saç sınıfı ek transformlar */
+    .trump-hair.messy .hair-main {
+      transform: translate(5px, -5px) rotate(-8deg);
+      border-radius: 40% 55% 20% 35%;
+    }
+    .trump-hair.messy .hair-side-left {
+      transform: rotate(-40deg) translate(5px, 8px);
+      border-radius: 50% 30% 50% 20%;
+    }
+    .trump-hair.messy .hair-side-right {
+      transform: rotate(35deg) translate(-5px, 5px);
+      border-radius: 20% 60% 20% 50%;
+    }
+    .trump-hair.very-messy .hair-main {
+      transform: translate(-8px, 10px) rotate(15deg) scaleY(0.9);
+      border-radius: 30% 70% 10% 40%;
+      background: #d4b844;
+    }
+    .trump-hair.very-messy .hair-side-left {
+      transform: rotate(-55deg) translate(-10px, 15px) scaleX(1.2);
+    }
+    .trump-hair.very-messy .hair-side-right {
+      transform: rotate(50deg) translate(10px, -10px) scaleX(0.8);
+    }
+    .trump-hair.knockout-hair .hair-main {
+      transform: rotate(25deg) translate(10px, 20px);
+      background: #b89b30; opacity:0.7;
+    }
+    .trump-hair.knockout-hair .hair-side-left {
+      transform: rotate(-70deg) translate(-15px, 10px); opacity:0.6;
+    }
+    .trump-hair.knockout-hair .hair-side-right {
+      transform: rotate(60deg) translate(15px, 5px); opacity:0.6;
+    }
+
+    .eyes {
+      position:absolute; top:70px; left:50%; transform:translateX(-50%);
+      width:120px; height:30px; z-index:4; pointer-events:none;
+      display:flex; justify-content:space-between;
+    }
+    .eye {
+      width:28px; height:30px; background:white; border-radius:50%;
+      position:relative; box-shadow:inset 0 2px 3px rgba(0,0,0,0.2);
+      transition:0.1s;
+    }
+    .eye::after {
+      content:''; width:12px; height:14px; background:#111; border-radius:50%;
+      position:absolute; top:7px; left:8px; transition:0.1s;
+    }
+    .trump-face.ouch .eye::after { width:8px; height:10px; top:10px; left:10px; }
+    .trump-face.knockout-face .eye::after {
+      width:20px; height:4px; background:#111; border-radius:2px;
+      top:13px; left:4px;
+    }
+    .eyebrows {
+      position:absolute; top:55px; left:50%; transform:translateX(-50%);
+      width:130px; height:20px; z-index:5; pointer-events:none;
+      display:flex; justify-content:space-between;
+    }
+    .eyebrow {
+      width:35px; height:8px; background:#f7d44a; border-radius:4px;
+      transition:0.15s;
+    }
+    .trump-face.ouch .eyebrow { transform:translateY(6px); background:#d4a830; }
+    .mouth {
+      position:absolute; bottom:40px; left:50%; transform:translateX(-50%);
+      width:60px; height:25px; border-bottom:5px solid #8b3a3a;
+      border-radius:0 0 30px 30px; z-index:4; pointer-events:none; transition:0.2s;
+    }
+    .trump-face.ouch .mouth { width:70px; height:35px; border-bottom:7px solid #6b2020; bottom:32px; }
+    .trump-face.knockout-face .mouth {
+      width:50px; height:15px; border-bottom:3px solid #555; bottom:45px;
+    }
+    .tie {
+      position:absolute; bottom:-25px; left:50%; transform:translateX(-50%);
+      border-left:18px solid transparent; border-right:18px solid transparent;
+      border-top:50px solid #c0392b; z-index:1; pointer-events:none;
+    }
+
+    /* Baloncuk, hasar yazısı, çarpma yıldızı */
+    .speech-bubble {
+      position:absolute; top:-55px; left:50%; transform:translateX(-50%);
+      background:white; color:#111; padding:8px 16px; border-radius:20px;
+      font-size:0.8rem; font-weight:bold; white-space:nowrap; z-index:10;
+      pointer-events:none; animation:bubbleUp 1.5s ease-out forwards;
+      box-shadow:0 4px 15px rgba(0,0,0,0.4); font-family:'Comic Sans MS', cursive;
+    }
+    .speech-bubble::after {
+      content:''; position:absolute; bottom:-12px; left:50%; transform:translateX(-50%);
+      border-left:12px solid transparent; border-right:12px solid transparent;
+      border-top:14px solid white;
+    }
+    @keyframes bubbleUp {
+      0% { opacity:1; transform:translateX(-50%) translateY(0) scale(0.8); }
+      30% { opacity:1; transform:translateX(-50%) translateY(-15px) scale(1.1); }
+      100% { opacity:0; transform:translateX(-50%) translateY(-60px) scale(0.7); }
+    }
+    .damage-float {
+      position:absolute; pointer-events:none; z-index:20;
+      font-size:2rem; font-weight:bold; color:#ffdd00;
+      text-shadow:0 0 10px #ff0000, 0 0 20px #ff6600;
+      animation:floatUp 0.9s ease-out forwards;
+    }
+    @keyframes floatUp {
+      0% { opacity:1; transform:translateY(0) scale(0.5); }
+      30% { opacity:1; transform:translateY(-30px) scale(1.3); }
+      100% { opacity:0; transform:translateY(-90px) scale(1); }
+    }
+    .impact-star {
+      position:absolute; pointer-events:none; z-index:19;
+      font-size:2.4rem; animation:impactBurst 0.5s ease-out forwards;
+    }
+    @keyframes impactBurst {
+      0% { opacity:1; transform:scale(0) rotate(0); }
+      100% { opacity:0; transform:scale(1.8) rotate(180deg); }
+    }
+    .thrown-item {
+      position:absolute; z-index:50; pointer-events:none;
+      font-size:2.8rem; filter:drop-shadow(0 4px 6px black);
+      will-change: left, top, transform;
+    }
+
+    /* Eşya paneli */
+    .items-panel {
+      background:var(--panel-bg); border-radius:20px; padding:14px 10px;
+      width:100%; box-shadow:0 8px 25px rgba(0,0,0,0.5); border:2px solid #333;
+    }
+    .items-panel h3 { color:#ccc; text-align:center; font-size:0.9rem; letter-spacing:2px; margin-bottom:10px; }
+    .items-grid { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; }
+    .item-btn {
+      width:58px; height:70px; border-radius:14px; border:3px solid transparent;
+      background:#1e2a3a; color:#fff; cursor:pointer; display:flex;
+      flex-direction:column; align-items:center; justify-content:center; gap:2px;
+      transition:0.2s; font-family:inherit; font-size:0.65rem;
+      -webkit-tap-highlight-color:transparent; touch-action:manipulation;
+    }
+    .item-btn:hover { border-color:#555; background:#253548; transform:translateY(-3px); }
+    .item-btn:active { transform:scale(0.9); }
+    .item-btn.active {
+      border-color:var(--gold)!important; background:#2a3f5a!important;
+      box-shadow:0 0 20px rgba(240,192,64,0.5); animation:activeGlow 0.8s infinite;
+    }
+    @keyframes activeGlow {
+      0%,100% { box-shadow:0 0 15px rgba(240,192,64,0.5); }
+      50% { box-shadow:0 0 30px rgba(240,192,64,0.9); }
+    }
+    .item-emoji { font-size:1.8rem; }
+    .item-name { font-size:0.6rem; letter-spacing:1px; color:#bbb; }
+    .item-damage { font-size:0.55rem; color:#ff6b6b; font-weight:bold; }
+
+    .reset-btn {
+      background:var(--accent); color:white; border:none; padding:12px 30px;
+      border-radius:30px; font-size:1rem; font-weight:bold; letter-spacing:2px;
+      cursor:pointer; font-family:inherit; transition:0.2s;
+      box-shadow:0 4px 15px rgba(232,65,24,0.4); text-transform:uppercase;
+    }
+    .reset-btn:hover { background:#ff5e3a; transform:translateY(-2px); }
+    .reset-btn:active { transform:scale(0.93); }
+
+    .victory-overlay {
+      position:fixed; top:0; left:0; width:100%; height:100%;
+      background:rgba(0,0,0,0.8); z-index:100; display:flex;
+      flex-direction:column; align-items:center; justify-content:center; gap:20px;
+      animation:fadeIn 0.4s ease;
+    }
+    @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+    .victory-text { font-size:3rem; color:#ffd700; text-shadow:0 0 40px #ff0000; animation:victoryBounce 0.6s infinite alternate; }
+    @keyframes victoryBounce { from{transform:scale(1)} to{transform:scale(1.08)} }
+    .victory-stats { color:#fff; font-size:1.1rem; text-align:center; }
+
+    @media (max-width:400px) {
+      .trump-area { width:180px; height:220px; }
+      .trump-face { width:150px; height:170px; top:20px; }
+      .trump-hair { width:160px; height:85px; top:-5px; }
+      .hair-main { width:140px; height:70px; left:10px; }
+      .eyes { top:55px; width:90px; }
+      .eye { width:22px; height:24px; }
+      .eye::after { width:9px; height:11px; top:5px; left:6px; }
+      .eyebrows { top:42px; width:100px; }
+      .eyebrow { width:28px; height:6px; }
+      .mouth { bottom:30px; width:45px; height:18px; border-bottom:4px solid #8b3a3a; }
+      .tie { border-left-width:14px; border-right-width:14px; border-top-width:38px; bottom:-20px; }
+      .item-btn { width:46px; height:58px; }
+      .item-emoji { font-size:1.4rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="stars" id="starsContainer"></div>
+
+  <div class="game-container">
+    <h1 class="title">🥊 MORARTAN FIRLATMA!</h1>
+    <p class="subtitle">Ekipman seç, fırlat, Sarı adamın suratı morarsın!</p>
+
+    <div class="stats">
+      <div class="stat-box"><div class="stat-label">Atış</div><div class="stat-value" id="slapCount">0</div></div>
+      <div class="stat-box"><div class="stat-label">Toplam Hasar</div><div class="stat-value" id="totalDamage">0</div></div>
+    </div>
+    <div id="healthBarContainer"><div id="healthBar"></div></div>
+    <div class="health-text">Sarı adamın Canı: <strong id="healthText">1000</strong> / 1000</div>
+
+    <div class="trump-area" id="trumpArea">
+      <div class="trump-hair" id="trumpHair">
+        <div class="hair-main"></div>
+        <div class="hair-side-left"></div>
+        <div class="hair-side-right"></div>
+      </div>
+      <div class="trump-face" id="trumpFace">
+        <!-- Morluklar burada -->
+        <div class="bruises-layer" id="bruisesLayer">
+          <div class="bruise" style="top:45px; left:35px;"></div>
+          <div class="bruise" style="top:55px; left:110px;"></div>
+          <div class="bruise" style="top:80px; left:70px;"></div>
+          <div class="bruise" style="top:35px; left:140px;"></div>
+          <div class="bruise" style="top:100px; left:25px;"></div>
+          <div class="bruise" style="top:90px; left:145px;"></div>
+        </div>
+        <div class="eyebrows"><div class="eyebrow"></div><div class="eyebrow"></div></div>
+        <div class="eyes"><div class="eye"></div><div class="eye"></div></div>
+        <div class="mouth"></div>
+      </div>
+      <div class="tie"></div>
+    </div>
+
+    <div class="items-panel">
+      <h3>🗡️ Atılacak Eşya</h3>
+      <div class="items-grid" id="itemsGrid"></div>
+    </div>
+
+    <button class="reset-btn" id="resetBtn">🔄 YENİDEN BAŞLAT</button>
+  </div>
+
+  <div class="victory-overlay" id="victoryOverlay" style="display:none;">
+    <div class="victory-text">🏆 MORLUK İÇİNDE NAKAVT! 🏆</div>
+    <div class="victory-stats" id="victoryStats"></div>
+    <button class="reset-btn" id="victoryResetBtn">🔄 TEKRAR DÖV</button>
+  </div>
+
+  <script>
+    (() => {
+      // yıldızlar
+      const starsContainer = document.getElementById('starsContainer');
+      for(let i=0; i<50; i++) {
+        const s = document.createElement('div'); s.className='star';
+        const size = Math.random()*3+1.5;
+        s.style.cssText = `width:${size}px;height:${size}px;left:${Math.random()*100}%;top:${Math.random()*100}%;--dur:${Math.random()*2+1.5}s;--delay:${Math.random()*3}s`;
+        starsContainer.appendChild(s);
+      }
+
+      const MAX_HEALTH = 1000;
+      let health = MAX_HEALTH, totalDamage = 0, slapCount = 0, gameOver = false;
+      let messyLevel = 0; // 0: temiz, 1: messy, 2: very messy, 3: knockout
+      const maxMessyBeforeKO = 2; // very messy sonrası nakavtta knockout
+
+      const items = [
+        { id:'hand', emoji:'✋', name:'Osmanlı Tokatı', damage:12 },
+        { id:'fist', emoji:'👊', name:'Yumruk', damage:28 },
+        { id:'shoe', emoji:'👞', name:'Kundura', damage:45 },
+        { id:'fish', emoji:'🐟', name:'Hamsi', damage:35 },
+        { id:'newspaper', emoji:'📰', name:'Gazete', damage:18 },
+        { id:'pie', emoji:'🍅', name:'Domates', damage:40 },
+        { id:'bat', emoji:'🏏', name:'Beyzbol Sopası', damage:70 },
+        { id:'toilet', emoji:'🧻', name:'Tuvalet Kağıdı', damage:8 },
+        { id:'phone', emoji:'📱', name:'iPhone', damage:22 },
+        { id:'crown', emoji:'👑', name:'Taç', damage:55 }
+      ];
+      let currentItem = items[0];
+
+      const trumpArea = document.getElementById('trumpArea');
+      const trumpFace = document.getElementById('trumpFace');
+      const trumpHair = document.getElementById('trumpHair');
+      const healthBar = document.getElementById('healthBar');
+      const healthText = document.getElementById('healthText');
+      const slapCountEl = document.getElementById('slapCount');
+      const totalDamageEl = document.getElementById('totalDamage');
+      const itemsGrid = document.getElementById('itemsGrid');
+      const resetBtn = document.getElementById('resetBtn');
+      const victoryOverlay = document.getElementById('victoryOverlay');
+      const victoryStats = document.getElementById('victoryStats');
+      const victoryResetBtn = document.getElementById('victoryResetBtn');
+      const bruisesLayer = document.getElementById('bruisesLayer');
+      const allBruises = bruisesLayer.querySelectorAll('.bruise');
+
+      const trumpQuotes = [
+        "Fake News! 📰","You're Fired! 🔥","Stop the Count! 🛑",
+        "China! 🇨🇳","Witch Hunt! 🧙","Sad! 😢","Wrong! ❌",
+        "Covfefe! ☕","I'm the best! 👌","Nasty! 🤢","Ouch! 🤕"
+      ];
+
+      function buildItems() {
+        itemsGrid.innerHTML = '';
+        items.forEach(item => {
+          const btn = document.createElement('button');
+          btn.className = `item-btn${item.id === currentItem.id ? ' active' : ''}`;
+          btn.innerHTML = `<span class="item-emoji">${item.emoji}</span><span class="item-name">${item.name}</span><span class="item-damage">+${item.damage} HP</span>`;
+          btn.addEventListener('click', (e) => { e.stopPropagation(); selectItem(item); });
+          btn.addEventListener('touchend', (e) => { e.stopPropagation(); e.preventDefault(); selectItem(item); });
+          itemsGrid.appendChild(btn);
+        });
+      }
+
+      function selectItem(item) {
+        currentItem = item;
+        document.querySelectorAll('.item-btn').forEach(b => b.classList.remove('active'));
+        const idx = items.findIndex(i => i.id === item.id);
+        if(itemsGrid.children[idx]) itemsGrid.children[idx].classList.add('active');
+        if(navigator.vibrate) navigator.vibrate(10);
+      }
+
+      function updateUI() {
+        const percent = Math.max(0, (health / MAX_HEALTH) * 100);
+        healthBar.style.width = percent + '%';
+        healthText.textContent = Math.max(0, Math.round(health));
+        slapCountEl.textContent = slapCount;
+        totalDamageEl.textContent = totalDamage;
+        if(percent < 25 && health > 0) healthBar.classList.add('danger');
+        else healthBar.classList.remove('danger');
+      }
+
+      // Morluk ekle (her vuruşta rastgele bir morluğu koyulaştır)
+      function addBruise() {
+        if (allBruises.length === 0) return;
+        const randomBruise = allBruises[Math.floor(Math.random() * allBruises.length)];
+        const currentOpacity = parseFloat(getComputedStyle(randomBruise).opacity) || 0;
+        const newOpacity = Math.min(1, currentOpacity + 0.25);
+        randomBruise.style.opacity = newOpacity;
+
+        // Eğer hepsi zaten morarmışsa, yeni morluk yok ama yine de artabilir
+        if (Math.random() < 0.4) {
+          // İkinci bir morluğu da biraz artır
+          const another = allBruises[Math.floor(Math.random() * allBruises.length)];
+          const op2 = parseFloat(getComputedStyle(another).opacity) || 0;
+          another.style.opacity = Math.min(1, op2 + 0.15);
+        }
+      }
+
+      // Saç dağıtma
+      function messUpHair() {
+        // Seviye atlama: 0 -> 1 -> 2 -> 3 (knockout özel)
+        if (messyLevel < 2) {
+          messyLevel++;
+        }
+        trumpHair.classList.remove('messy', 'very-messy', 'knockout-hair');
+        if (messyLevel === 1) {
+          trumpHair.classList.add('messy');
+        } else if (messyLevel === 2) {
+          trumpHair.classList.add('very-messy');
+        } else if (messyLevel >= 3) {
+          trumpHair.classList.add('knockout-hair');
+        }
+      }
+
+      function resetAppearance() {
+        // Morlukları sıfırla
+        allBruises.forEach(b => b.style.opacity = '0');
+        // Saçı düzelt
+        messyLevel = 0;
+        trumpHair.classList.remove('messy', 'very-messy', 'knockout-hair');
+      }
+
+      function showDamageFloat(x,y,dmg) {
+        const el = document.createElement('div'); el.className='damage-float';
+        el.textContent = '-'+dmg; el.style.left=x+'px'; el.style.top=y+'px';
+        trumpArea.appendChild(el); setTimeout(()=>el.remove(),900);
+      }
+      function showImpactStar(x,y) {
+        const el = document.createElement('div'); el.className='impact-star';
+        el.textContent='💥'; el.style.left=x+'px'; el.style.top=y+'px';
+        trumpArea.appendChild(el); setTimeout(()=>el.remove(),500);
+      }
+      function showSpeechBubble() {
+        trumpArea.querySelectorAll('.speech-bubble').forEach(b=>b.remove());
+        const b = document.createElement('div'); b.className='speech-bubble';
+        b.textContent = trumpQuotes[Math.floor(Math.random()*trumpQuotes.length)];
+        trumpArea.appendChild(b); setTimeout(()=>b.remove(),1500);
+      }
+      function triggerShake() {
+        trumpArea.classList.remove('hit'); void trumpArea.offsetWidth;
+        trumpArea.classList.add('hit');
+        setTimeout(()=>trumpArea.classList.remove('hit'),400);
+      }
+      function triggerOuchFace() {
+        trumpFace.classList.add('ouch');
+        setTimeout(()=>trumpFace.classList.remove('ouch'),300);
+      }
+
+      function animateThrow(startX, startY, targetX, targetY, emoji, onComplete) {
+        const el = document.createElement('div');
+        el.className = 'thrown-item';
+        el.textContent = emoji;
+        el.style.left = startX + 'px';
+        el.style.top = startY + 'px';
+        trumpArea.appendChild(el);
+
+        const duration = 420;
+        const startTime = performance.now();
+        const controlX = (startX + targetX) / 2 - 30;
+        const controlY = Math.min(startY, targetY) - 90;
+
+        function step(now) {
+          const elapsed = now - startTime;
+          let t = Math.min(elapsed / duration, 1.0);
+          const eased = t * t;
+          const x = (1-eased)*(1-eased)*startX + 2*(1-eased)*eased*controlX + eased*eased*targetX;
+          const y = (1-eased)*(1-eased)*startY + 2*(1-eased)*eased*controlY + eased*eased*targetY;
+          el.style.left = x + 'px';
+          el.style.top = y + 'px';
+          el.style.transform = `rotate(${eased * 540}deg) scale(${1 + eased*0.2})`;
+
+          if(t < 1.0) {
+            requestAnimationFrame(step);
+          } else {
+            el.remove();
+            if(onComplete) onComplete();
+          }
+        }
+        requestAnimationFrame(step);
+      }
+
+      function handleThrow(e) {
+        if(gameOver) return;
+
+        let clientX, clientY;
+        if(e.touches && e.touches.length) { clientX=e.touches[0].clientX; clientY=e.touches[0].clientY; }
+        else if(e.changedTouches && e.changedTouches.length) { clientX=e.changedTouches[0].clientX; clientY=e.changedTouches[0].clientY; }
+        else { clientX=e.clientX; clientY=e.clientY; }
+
+        const areaRect = trumpArea.getBoundingClientRect();
+        const targetX = clientX - areaRect.left;
+        const targetY = clientY - areaRect.top;
+        const startX = areaRect.width / 2;
+        const startY = areaRect.height - 15;
+
+        const damage = currentItem.damage;
+
+        animateThrow(startX, startY, targetX, targetY, currentItem.emoji, () => {
+          health -= damage;
+          totalDamage += damage;
+          slapCount++;
+          showDamageFloat(targetX-20, targetY-30, damage);
+          showImpactStar(targetX-15, targetY-15);
+          triggerShake();
+          triggerOuchFace();
+          showSpeechBubble();
+          addBruise();           // yüze morluk ekle
+          messUpHair();          // saçı dağıt
+          if(navigator.vibrate) navigator.vibrate(20);
+
+          if(health <= 0) {
+            health = 0;
+            gameOver = true;
+            trumpFace.classList.add('knockout-face');
+            trumpArea.classList.add('knockout');
+            // Nakavtta saçı iyice dağıt
+            messyLevel = 3;
+            trumpHair.classList.remove('messy', 'very-messy');
+            trumpHair.classList.add('knockout-hair');
+            updateUI();
+            setTimeout(showVictory, 900);
+          } else {
+            updateUI();
+          }
+        });
+      }
+
+      function showVictory() {
+        victoryStats.innerHTML = `🎯 Atış: <strong>${slapCount}</strong><br>💥 Hasar: <strong>${totalDamage}</strong><br>🟣 Morluklar ve dağınık saçla pes etti!`;
+        victoryOverlay.style.display = 'flex';
+        if(navigator.vibrate) navigator.vibrate([50,100,50,100,200]);
+      }
+      function hideVictory() { victoryOverlay.style.display = 'none'; }
+
+      function resetGame() {
+        health = MAX_HEALTH; totalDamage = 0; slapCount = 0; gameOver = false;
+        trumpFace.classList.remove('ouch','knockout-face');
+        trumpArea.classList.remove('hit','knockout');
+        trumpArea.querySelectorAll('.damage-float,.impact-star,.speech-bubble,.thrown-item').forEach(e=>e.remove());
+        resetAppearance();
+        hideVictory();
+        updateUI();
+        healthBar.classList.remove('danger');
+      }
+
+      trumpArea.addEventListener('pointerdown', handleThrow);
+      trumpArea.addEventListener('touchstart', (e) => { e.preventDefault(); handleThrow(e); }, {passive:false});
+
+      resetBtn.addEventListener('click', resetGame);
+      resetBtn.addEventListener('touchend', (e)=>{ e.preventDefault(); resetGame(); });
+      victoryResetBtn.addEventListener('click', resetGame);
+      victoryResetBtn.addEventListener('touchend', (e)=>{ e.preventDefault(); resetGame(); });
+
+      document.addEventListener('keydown', (e) => {
+        const num = parseInt(e.key);
+        if(num>=1 && num<=items.length) selectItem(items[num-1]);
+        if(e.key==='r' || e.key==='R') resetGame();
+      });
+
+      buildItems();
+      updateUI();
+      console.log('🥊 Sarı adam sopaya hazır!');
+    })();
+  </script>
+</body>
+</html>
